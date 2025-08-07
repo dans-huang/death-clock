@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life in Weeks</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #000000;
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6" style="background-color: #000000; font-family: 'Inter', sans-serif;">
+    <!-- Input fields in top left corner -->
+    <div class="fixed top-0 left-0 z-10" 
+         onmouseenter="showInputs = true; updateInputVisibility();" 
+         onmouseleave="if(showVisualization) { showInputs = false; updateInputVisibility(); }">
+        
+        <div id="inputContainer" class="transition-opacity duration-300" style="opacity: 1;">
+            <div class="bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-lg p-4 space-y-4" style="min-width: 16rem;">
+                <h3 class="text-gray-300 font-normal text-xs">Life in Weeks Setup</h3>
+                
+                <div class="space-y-2">
+                    <label class="text-gray-400 text-xs block">Birthday</label>
+                    <input id="birthdateInput" type="date" 
+                           onchange="birthdate = this.value"
+                           class="w-full p-2 bg-gray-800 bg-opacity-50 rounded text-gray-100 text-sm focus:bg-opacity-80 focus:outline-none transition-all"
+                           style="border: none;">
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-gray-400 text-xs block">Estimated Lifespan (years)</label>
+                    <input id="lifespanInput" type="number" value="80" min="1" max="120"
+                           onchange="lifespan = parseInt(this.value)"
+                           class="w-full p-2 bg-gray-800 bg-opacity-50 rounded text-gray-100 text-sm focus:bg-opacity-80 focus:outline-none transition-all"
+                           style="border: none;">
+                </div>
+                
+                <button onclick="handleGenerate()"
+                        class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-4 rounded text-xs font-normal transition-colors"
+                        style="border: none;">
+                    Generate Visualization
+                </button>
+            </div>
+        </div>
+        
+        <!-- Invisible hover area when visualization is shown -->
+        <div class="w-32 h-32 bg-transparent"></div>
+    </div>
+
+    <!-- Main content -->
+    <div class="max-w-4xl mx-auto">
+        <div id="app"></div>
+        <div id="mainContent"></div>
+    </div>
+
+    <script>
+        let stats = null;
+        let birthdate = '';
+        let lifespan = 80;
+        let showVisualization = false;
+        let showInputs = true;
+
+        function calculateStats(date, totalYears) {
+            const birthDate = new Date(date);
+            const today = new Date();
+            
+            const msInWeek = 1000 * 60 * 60 * 24 * 7;
+            const weeksLived = Math.floor((today - birthDate) / msInWeek);
+            
+            const totalWeeks = totalYears * 52;
+            const weeksRemaining = totalWeeks - weeksLived;
+            const percentageLived = Math.round((weeksLived / totalWeeks) * 100);
+            
+            const msInDay = 1000 * 60 * 60 * 24;
+            const daysLived = Math.floor((today - birthDate) / msInDay);
+            const daysRemaining = (totalYears * 365) - daysLived;
+            
+            const yearsLived = Math.floor((today - birthDate) / (1000 * 60 * 60 * 24 * 365.25));
+            const yearsRemaining = totalYears - yearsLived;
+            
+            return {
+                weeksLived,
+                totalWeeks,
+                weeksRemaining,
+                percentageLived,
+                daysLived,
+                daysRemaining,
+                yearsLived,
+                yearsRemaining
+            };
+        }
+
+        function getFormattedNumber(num) {
+            return new Intl.NumberFormat().format(num);
+        }
+
+        function renderWeekGrid(stats) {
+            const weeksPerColumn = 52;
+            const totalColumns = parseInt(lifespan);
+            const rows = [];
+            
+            for (let row = 0; row < weeksPerColumn; row++) {
+                const weekCells = [];
+                
+                for (let col = 0; col < totalColumns; col++) {
+                    const weekNumber = col * weeksPerColumn + row;
+                    
+                    if (weekNumber < stats.totalWeeks) {
+                        const isPast = weekNumber < stats.weeksLived;
+                        const isCurrent = weekNumber === stats.weeksLived;
+                        
+                        let cellClass = "w-2 h-2 m-0.5 rounded-full transition-all ";
+                        if (isPast) {
+                            cellClass += "bg-gray-800 ";
+                        } else if (isCurrent) {
+                            cellClass += "bg-orange-500 animate-pulse ";
+                        } else {
+                            cellClass += "bg-gray-400 ";
+                        }
+                        
+                        weekCells.push(`<div class="${cellClass}"></div>`);
+                    }
+                }
+                
+                rows.push(`<div class="flex">${weekCells.join('')}</div>`);
+            }
+            
+            return `
+                <div class="flex flex-col items-center">
+                    <h2 class="text-lg font-medium mb-4 text-gray-100">Life in weeks</h2>
+                    <div class="flex flex-col items-center">
+                        ${rows.join('')}
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-8 text-gray-300 mt-12">
+                        <div class="space-y-3">
+                            <h3 class="text-md font-medium text-gray-100 mb-3">Time lived</h3>
+                            <div class="space-y-2">
+                                <p><span class="text-gray-400">Years:</span> <span class="text-gray-300 font-mono">${stats.yearsLived}</span></p>
+                                <p><span class="text-gray-400">Weeks:</span> <span class="text-gray-300 font-mono">${getFormattedNumber(stats.weeksLived)}</span></p>
+                                <p><span class="text-gray-400">Days:</span> <span class="text-gray-300 font-mono">${getFormattedNumber(stats.daysLived)}</span></p>
+                                <p><span class="text-gray-400">Progress:</span> <span class="text-gray-300 font-mono">${stats.percentageLived}%</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <h3 class="text-md font-medium text-gray-100 mb-3">Time remaining</h3>
+                            <div class="space-y-2">
+                                <p><span class="text-gray-400">Years:</span> <span class="text-gray-300 font-mono">${stats.yearsRemaining}</span></p>
+                                <p><span class="text-gray-400">Weeks:</span> <span class="text-gray-300 font-mono">${getFormattedNumber(stats.weeksRemaining)}</span></p>
+                                <p><span class="text-gray-400">Days:</span> <span class="text-gray-300 font-mono">${getFormattedNumber(stats.daysRemaining)}</span></p>
+                                <p><span class="text-gray-400">Remaining:</span> <span class="text-gray-300 font-mono">${100 - stats.percentageLived}%</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleGenerate() {
+            if (birthdate && lifespan) {
+                localStorage.setItem('lifeWeeks_birthdate', birthdate);
+                localStorage.setItem('lifeWeeks_lifespan', lifespan.toString());
+                
+                stats = calculateStats(birthdate, parseInt(lifespan));
+                showVisualization = true;
+                showInputs = false;
+                
+                document.getElementById('app').innerHTML = renderWeekGrid(stats);
+                updateInputVisibility();
+                updateMainContent();
+            }
+        }
+
+        function updateInputVisibility() {
+            const inputContainer = document.getElementById('inputContainer');
+            if (showInputs) {
+                inputContainer.style.opacity = '1';
+            } else {
+                inputContainer.style.opacity = '0';
+            }
+        }
+
+        function updateMainContent() {
+            const mainContent = document.getElementById('mainContent');
+            if (!showVisualization) {
+                mainContent.innerHTML = `
+                    <div class="flex items-center justify-center min-h-screen">
+                        <div class="text-center">
+                            <h1 class="text-4xl font-light text-gray-100 mb-4">Life in Weeks</h1>
+                            <p class="text-gray-400">Enter details to begin</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                mainContent.innerHTML = '';
+            }
+        }
+
+        function loadSavedData() {
+            const savedBirthdate = localStorage.getItem('lifeWeeks_birthdate');
+            const savedLifespan = localStorage.getItem('lifeWeeks_lifespan');
+            
+            if (savedBirthdate && savedLifespan) {
+                birthdate = savedBirthdate;
+                lifespan = parseInt(savedLifespan);
+                stats = calculateStats(birthdate, lifespan);
+                showVisualization = true;
+                showInputs = false;
+                
+                document.getElementById('birthdateInput').value = birthdate;
+                document.getElementById('lifespanInput').value = lifespan;
+                document.getElementById('app').innerHTML = renderWeekGrid(stats);
+                updateInputVisibility();
+                updateMainContent();
+            }
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedData();
+            if (!showVisualization) {
+                updateMainContent();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -19,7 +19,7 @@
          onmouseenter="showInputs = true; updateInputVisibility();" 
          onmouseleave="if(showVisualization) { showInputs = false; updateInputVisibility(); }">
         
-        <div id="inputContainer" class="transition-opacity duration-300" style="opacity: 1;">
+        <div id="inputContainer" class="transition-opacity duration-300" style="opacity: 0;">
             <div class="bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-lg p-4 space-y-4" style="min-width: 16rem;">
                 <h3 class="text-gray-300 font-normal text-xs">Life in Weeks Setup</h3>
                 
@@ -222,8 +222,14 @@
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
-            loadSavedData();
-            if (!showVisualization) {
+            const hasSavedData = localStorage.getItem('lifeWeeks_birthdate') && localStorage.getItem('lifeWeeks_lifespan');
+            
+            if (hasSavedData) {
+                loadSavedData();
+            } else {
+                // Show input panel for first-time users
+                showInputs = true;
+                updateInputVisibility();
                 updateMainContent();
             }
         });

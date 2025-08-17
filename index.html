@@ -11,44 +11,65 @@
             background-color: #000000;
             font-family: 'Inter', sans-serif;
         }
+        
+        .event-future {
+            animation: event-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes event-pulse-future {
+            0%, 100% {
+                background-color: rgb(156 163 175); /* bg-gray-400 - same as normal future */
+            }
+            50% {
+                background-color: rgb(107 114 128); /* bg-gray-500 - distinguishable */
+            }
+        }
+        
+        .event-past {
+            animation: event-pulse-past 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes event-pulse-past {
+            0%, 100% {
+                background-color: rgb(31 41 55); /* bg-gray-800 - same as normal past */
+            }
+            50% {
+                background-color: rgb(75 85 99); /* bg-gray-600 - distinguishable */
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen p-6" style="background-color: #000000; font-family: 'Inter', sans-serif;">
-    <!-- Input fields in top left corner -->
-    <div class="fixed top-0 left-0 z-10" 
-         onmouseenter="showInputs = true; updateInputVisibility();" 
-         onmouseleave="if(showVisualization) { showInputs = false; updateInputVisibility(); }">
-        
-        <div id="inputContainer" class="transition-opacity duration-300" style="opacity: 0;">
-            <div class="bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-lg p-4 space-y-4" style="min-width: 16rem;">
+    <!-- Input fields - shown on hover over title when visualization is active -->
+    <div class="fixed top-0 left-0 right-0 z-10 flex justify-center" 
+         style="display: none;" id="hoverInputs"
+         onmouseleave="showInputs = false; updateInputVisibility();">
+        <div class="mt-6">
+            <div class="bg-gray-900 rounded-lg p-4 space-y-4 border border-gray-700" style="min-width: 16rem;">
                 <h3 class="text-gray-300 font-normal text-xs">Life in Weeks Setup</h3>
                 
                 <div class="space-y-2">
                     <label class="text-gray-400 text-xs block">Birthday</label>
-                    <input id="birthdateInput" type="date" 
-                           onchange="birthdate = this.value"
-                           class="w-full p-2 bg-gray-800 bg-opacity-50 rounded text-gray-100 text-sm focus:bg-opacity-80 focus:outline-none transition-all"
+                    <input id="birthdateInputHover" type="date" 
+                           onchange="birthdate = this.value; if(document.getElementById('birthdateInput')) document.getElementById('birthdateInput').value = this.value;"
+                           class="w-full p-2 bg-gray-800 rounded text-gray-100 text-sm focus:bg-gray-700 focus:outline-none transition-all"
                            style="border: none;">
                 </div>
                 
                 <div class="space-y-2">
                     <label class="text-gray-400 text-xs block">Estimated Lifespan (years)</label>
-                    <input id="lifespanInput" type="number" value="80" min="1" max="120"
-                           onchange="lifespan = parseInt(this.value)"
-                           class="w-full p-2 bg-gray-800 bg-opacity-50 rounded text-gray-100 text-sm focus:bg-opacity-80 focus:outline-none transition-all"
+                    <input id="lifespanInputHover" type="number" min="1" max="120"
+                           onchange="lifespan = parseInt(this.value); if(document.getElementById('lifespanInput')) document.getElementById('lifespanInput').value = this.value;"
+                           class="w-full p-2 bg-gray-800 rounded text-gray-100 text-sm focus:bg-gray-700 focus:outline-none transition-all"
                            style="border: none;">
                 </div>
                 
                 <button onclick="handleGenerate()"
-                        class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-4 rounded text-xs font-normal transition-colors"
-                        style="border: none;">
-                    Generate Visualization
+                        class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-4 rounded text-xs font-normal transition-colors">
+                    Update Visualization
                 </button>
             </div>
         </div>
-        
-        <!-- Invisible hover area when visualization is shown -->
-        <div class="w-32 h-32 bg-transparent"></div>
     </div>
 
     <!-- Main content -->
@@ -63,8 +84,30 @@
         let lifespan = 80;
         let showVisualization = false;
         let showInputs = true;
+        let events = {};
+        let showEventPopup = false;
+        let selectedWeek = null;
 
-        function calculateStats(date, totalYears) {
+        function getWeekDateRange(weekNumber) {
+            const birthDate = new Date(birthdate);
+            const weekStart = new Date(birthDate.getTime() + (weekNumber * 7 * 24 * 60 * 60 * 1000));
+            const weekEnd = new Date(weekStart.getTime() + (6 * 24 * 60 * 60 * 1000));
+            
+            const formatDate = (date) => {
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                return `${month}/${day}`;
+            };
+            
+            const startFormatted = formatDate(weekStart);
+            const endFormatted = formatDate(weekEnd);
+            const year = weekStart.getFullYear();
+            
+            // Calculate age during this week
+            const age = Math.floor((weekStart - birthDate) / (1000 * 60 * 60 * 24 * 365.25));
+            
+            return `${startFormatted}~${endFormatted}, ${year} (age ${age})`;
+        }
             const birthDate = new Date(date);
             const today = new Date();
             
@@ -112,17 +155,18 @@
                     if (weekNumber < stats.totalWeeks) {
                         const isPast = weekNumber < stats.weeksLived;
                         const isCurrent = weekNumber === stats.weeksLived;
+                        const hasEvent = events[weekNumber];
                         
-                        let cellClass = "w-2 h-2 m-0.5 rounded-full transition-all ";
+                        let cellClass = "w-2 h-2 m-0.5 rounded-full transition-all cursor-pointer ";
                         if (isPast) {
-                            cellClass += "bg-gray-800 ";
+                            cellClass += hasEvent ? "event-past" : "bg-gray-800";
                         } else if (isCurrent) {
-                            cellClass += "bg-orange-500 animate-pulse ";
+                            cellClass += "bg-orange-500 animate-pulse";
                         } else {
-                            cellClass += "bg-gray-400 ";
+                            cellClass += hasEvent ? "event-future" : "bg-gray-400";
                         }
                         
-                        weekCells.push(`<div class="${cellClass}"></div>`);
+                        weekCells.push(`<div class="${cellClass}" onclick="handleWeekClick(${weekNumber})" title="${hasEvent ? events[weekNumber] : 'Week ' + (weekNumber + 1)}"></div>`);
                     }
                 }
                 
@@ -131,7 +175,7 @@
             
             return `
                 <div class="flex flex-col items-center">
-                    <h2 class="text-lg font-medium mb-4 text-gray-100">Life in weeks</h2>
+                    <h2 class="text-lg font-medium mb-4 text-gray-100" style="cursor: default;" onmouseenter="showInputs = true; updateInputVisibility();">Life in weeks</h2>
                     <div class="flex flex-col items-center">
                         ${rows.join('')}
                     </div>
@@ -176,12 +220,98 @@
             }
         }
 
-        function updateInputVisibility() {
-            const inputContainer = document.getElementById('inputContainer');
-            if (showInputs) {
-                inputContainer.style.opacity = '1';
+        function handleWeekClick(weekNumber) {
+            selectedWeek = weekNumber;
+            showEventPopup = true;
+            showEventPopupModal();
+        }
+
+        function showEventPopupModal() {
+            const eventName = events[selectedWeek] || '';
+            const modal = `
+                <div id="eventModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20" onclick="handleEventCancel()">
+                    <div class="bg-gray-900 border border-gray-700 rounded-lg p-6" style="min-width: 20rem;" onclick="event.stopPropagation()">
+                        <h3 class="text-gray-100 font-medium text-sm mb-4">
+                            Add Event - ${getWeekDateRange(selectedWeek)}
+                        </h3>
+                        <input
+                            id="eventNameInput"
+                            type="text"
+                            value="${eventName}"
+                            placeholder="Event name"
+                            class="w-full p-2 bg-gray-800 border border-gray-600 rounded text-gray-100 text-sm focus:border-orange-500 focus:outline-none mb-4"
+                            onkeydown="handleEventKeydown(event)"
+                        />
+                        <div class="flex gap-2">
+                            <button
+                                onclick="handleEventSave()"
+                                class="flex-1 bg-gray-300 hover:bg-gray-200 text-gray-900 py-2 px-4 rounded text-sm transition-colors"
+                            >
+                                Save
+                            </button>
+                            <button
+                                onclick="handleEventClear()"
+                                class="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-4 rounded text-sm transition-colors"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modal);
+            document.getElementById('eventNameInput').focus();
+        }
+
+        function handleEventKeydown(event) {
+            if (event.key === 'Enter') handleEventSave();
+            if (event.key === 'Escape') handleEventCancel();
+        }
+
+        function handleEventSave() {
+            const eventNameInput = document.getElementById('eventNameInput');
+            const eventName = eventNameInput.value.trim();
+            
+            if (eventName) {
+                events[selectedWeek] = eventName;
             } else {
-                inputContainer.style.opacity = '0';
+                delete events[selectedWeek];
+            }
+            
+            localStorage.setItem('lifeWeeks_events', JSON.stringify(events));
+            handleEventCancel();
+            
+            // Refresh the visualization
+            document.getElementById('app').innerHTML = renderWeekGrid(stats);
+        }
+
+        function handleEventClear() {
+            delete events[selectedWeek];
+            localStorage.setItem('lifeWeeks_events', JSON.stringify(events));
+            handleEventCancel();
+            
+            // Refresh the visualization
+            document.getElementById('app').innerHTML = renderWeekGrid(stats);
+        }
+
+        function handleEventCancel() {
+            const modal = document.getElementById('eventModal');
+            if (modal) {
+                modal.remove();
+            }
+            showEventPopup = false;
+            selectedWeek = null;
+        }
+
+        function updateInputVisibility() {
+            const hoverInputs = document.getElementById('hoverInputs');
+            
+            if (showVisualization) {
+                if (showInputs) {
+                    hoverInputs.style.display = 'flex';
+                } else {
+                    hoverInputs.style.display = 'none';
+                }
             }
         }
 
@@ -189,10 +319,30 @@
             const mainContent = document.getElementById('mainContent');
             if (!showVisualization) {
                 mainContent.innerHTML = `
-                    <div class="flex items-center justify-center min-h-screen">
-                        <div class="text-center">
-                            <h1 class="text-4xl font-light text-gray-100 mb-4">Life in Weeks</h1>
-                            <p class="text-gray-400">Enter details to begin</p>
+                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+                        <div class="bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-lg p-6 space-y-4" style="min-width: 20rem;">
+                            <h3 class="text-gray-300 font-normal text-lg text-center mb-6">Life in Weeks Setup</h3>
+                            
+                            <div class="space-y-2">
+                                <label class="text-gray-400 text-sm block">Birthday</label>
+                                <input id="birthdateInput" type="date" 
+                                       onchange="birthdate = this.value"
+                                       class="w-full p-3 bg-gray-800 bg-opacity-50 rounded text-gray-100 text-sm focus:bg-opacity-80 focus:outline-none transition-all"
+                                       style="border: none;">
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <label class="text-gray-400 text-sm block">Estimated Lifespan (years)</label>
+                                <input id="lifespanInput" type="number" value="80" min="1" max="120"
+                                       onchange="lifespan = parseInt(this.value)"
+                                       class="w-full p-3 bg-gray-800 bg-opacity-50 rounded text-gray-100 text-sm focus:bg-opacity-80 focus:outline-none transition-all"
+                                       style="border: none;">
+                            </div>
+                            
+                            <button onclick="handleGenerate()"
+                                    class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 py-3 px-4 rounded text-sm font-normal transition-colors mt-6">
+                                Generate Visualization
+                            </button>
                         </div>
                     </div>
                 `;
@@ -204,6 +354,11 @@
         function loadSavedData() {
             const savedBirthdate = localStorage.getItem('lifeWeeks_birthdate');
             const savedLifespan = localStorage.getItem('lifeWeeks_lifespan');
+            const savedEvents = localStorage.getItem('lifeWeeks_events');
+            
+            if (savedEvents) {
+                events = JSON.parse(savedEvents);
+            }
             
             if (savedBirthdate && savedLifespan) {
                 birthdate = savedBirthdate;
@@ -212,7 +367,12 @@
                 showVisualization = true;
                 showInputs = false;
                 
-                document.getElementById('birthdateInput').value = birthdate;
+                document.getElementById('birthdateInputHover').value = birthdate;
+                document.getElementById('lifespanInputHover').value = lifespan;
+                document.getElementById('app').innerHTML = renderWeekGrid(stats);
+                updateInputVisibility();
+                updateMainContent();
+            }getElementById('birthdateInput').value = birthdate;
                 document.getElementById('lifespanInput').value = lifespan;
                 document.getElementById('app').innerHTML = renderWeekGrid(stats);
                 updateInputVisibility();

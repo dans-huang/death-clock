@@ -13,7 +13,7 @@
         }
         
         .event-future {
-            animation: event-pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            animation: event-pulse-future 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
         
         @keyframes event-pulse-future {
@@ -51,7 +51,7 @@
                 <div class="space-y-2">
                     <label class="text-gray-400 text-xs block">Birthday</label>
                     <input id="birthdateInputHover" type="date" 
-                           onchange="birthdate = this.value; if(document.getElementById('birthdateInput')) document.getElementById('birthdateInput').value = this.value;"
+                           onchange="birthdate = this.value; handleGenerate();"
                            class="w-full p-2 bg-gray-800 rounded text-gray-100 text-sm focus:bg-gray-700 focus:outline-none transition-all"
                            style="border: none;">
                 </div>
@@ -59,7 +59,7 @@
                 <div class="space-y-2">
                     <label class="text-gray-400 text-xs block">Estimated Lifespan (years)</label>
                     <input id="lifespanInputHover" type="number" min="1" max="120"
-                           onchange="lifespan = parseInt(this.value); if(document.getElementById('lifespanInput')) document.getElementById('lifespanInput').value = this.value;"
+                           onchange="lifespan = parseInt(this.value); handleGenerate();"
                            class="w-full p-2 bg-gray-800 rounded text-gray-100 text-sm focus:bg-gray-700 focus:outline-none transition-all"
                            style="border: none;">
                 </div>
@@ -85,29 +85,9 @@
         let showVisualization = false;
         let showInputs = true;
         let events = {};
-        let showEventPopup = false;
         let selectedWeek = null;
 
-        function getWeekDateRange(weekNumber) {
-            const birthDate = new Date(birthdate);
-            const weekStart = new Date(birthDate.getTime() + (weekNumber * 7 * 24 * 60 * 60 * 1000));
-            const weekEnd = new Date(weekStart.getTime() + (6 * 24 * 60 * 60 * 1000));
-            
-            const formatDate = (date) => {
-                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                const day = date.getDate().toString().padStart(2, '0');
-                return `${month}/${day}`;
-            };
-            
-            const startFormatted = formatDate(weekStart);
-            const endFormatted = formatDate(weekEnd);
-            const year = weekStart.getFullYear();
-            
-            // Calculate age during this week
-            const age = Math.floor((weekStart - birthDate) / (1000 * 60 * 60 * 24 * 365.25));
-            
-            return `${startFormatted}~${endFormatted}, ${year} (age ${age})`;
-        }
+        function calculateStats(date, totalYears) {
             const birthDate = new Date(date);
             const today = new Date();
             
@@ -139,6 +119,27 @@
 
         function getFormattedNumber(num) {
             return new Intl.NumberFormat().format(num);
+        }
+
+        function getWeekDateRange(weekNumber) {
+            const birthDate = new Date(birthdate);
+            const weekStart = new Date(birthDate.getTime() + (weekNumber * 7 * 24 * 60 * 60 * 1000));
+            const weekEnd = new Date(weekStart.getTime() + (6 * 24 * 60 * 60 * 1000));
+            
+            const formatDate = (date) => {
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                return `${month}/${day}`;
+            };
+            
+            const startFormatted = formatDate(weekStart);
+            const endFormatted = formatDate(weekEnd);
+            const year = weekStart.getFullYear();
+            
+            // Calculate age during this week
+            const age = Math.floor((weekStart - birthDate) / (1000 * 60 * 60 * 24 * 365.25));
+            
+            return `${startFormatted}~${endFormatted}, ${year} (age ${age})`;
         }
 
         function renderWeekGrid(stats) {
@@ -222,11 +223,10 @@
 
         function handleWeekClick(weekNumber) {
             selectedWeek = weekNumber;
-            showEventPopup = true;
-            showEventPopupModal();
+            showEventPopup();
         }
 
-        function showEventPopupModal() {
+        function showEventPopup() {
             const eventName = events[selectedWeek] || '';
             const modal = `
                 <div id="eventModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20" onclick="handleEventCancel()">
@@ -299,7 +299,6 @@
             if (modal) {
                 modal.remove();
             }
-            showEventPopup = false;
             selectedWeek = null;
         }
 
@@ -320,14 +319,14 @@
             if (!showVisualization) {
                 mainContent.innerHTML = `
                     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
-                        <div class="bg-gray-900 bg-opacity-80 backdrop-blur-sm rounded-lg p-6 space-y-4" style="min-width: 20rem;">
+                        <div class="bg-gray-900 rounded-lg p-6 space-y-4 border border-gray-700" style="min-width: 20rem;">
                             <h3 class="text-gray-300 font-normal text-lg text-center mb-6">Life in Weeks Setup</h3>
                             
                             <div class="space-y-2">
                                 <label class="text-gray-400 text-sm block">Birthday</label>
                                 <input id="birthdateInput" type="date" 
                                        onchange="birthdate = this.value"
-                                       class="w-full p-3 bg-gray-800 bg-opacity-50 rounded text-gray-100 text-sm focus:bg-opacity-80 focus:outline-none transition-all"
+                                       class="w-full p-3 bg-gray-800 rounded text-gray-100 text-sm focus:bg-gray-700 focus:outline-none transition-all"
                                        style="border: none;">
                             </div>
                             
@@ -335,7 +334,7 @@
                                 <label class="text-gray-400 text-sm block">Estimated Lifespan (years)</label>
                                 <input id="lifespanInput" type="number" value="80" min="1" max="120"
                                        onchange="lifespan = parseInt(this.value)"
-                                       class="w-full p-3 bg-gray-800 bg-opacity-50 rounded text-gray-100 text-sm focus:bg-opacity-80 focus:outline-none transition-all"
+                                       class="w-full p-3 bg-gray-800 rounded text-gray-100 text-sm focus:bg-gray-700 focus:outline-none transition-all"
                                        style="border: none;">
                             </div>
                             
@@ -369,11 +368,6 @@
                 
                 document.getElementById('birthdateInputHover').value = birthdate;
                 document.getElementById('lifespanInputHover').value = lifespan;
-                document.getElementById('app').innerHTML = renderWeekGrid(stats);
-                updateInputVisibility();
-                updateMainContent();
-            }getElementById('birthdateInput').value = birthdate;
-                document.getElementById('lifespanInput').value = lifespan;
                 document.getElementById('app').innerHTML = renderWeekGrid(stats);
                 updateInputVisibility();
                 updateMainContent();
